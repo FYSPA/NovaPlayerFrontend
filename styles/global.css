@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Seccion General */
+/* 1. ESTO ES LO MÁS IMPORTANTE: Definir el color base en el HTML (:root) */
+:root {
+    background-color: #ffffff;
+    /* Color exacto del modo Light */
+}
+
+:root.dark {
+    background-color: #000000;
+    /* Color exacto del modo Dark */
+}
+
+/* 2. Aseguramos que el body sea transparente para ver el fondo del root */
+body {
+    background-color: transparent;
+}
+
+/* 3. CONFIGURACIÓN DE LA ANIMACIÓN */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    display: block;
+}
+
+/* La capa nueva (la que entra) se pone encima */
+::view-transition-new(root) {
+    z-index: 9999;
+    animation: reveal 0.6s ease-in-out;
+}
+
+/* La capa vieja se queda abajo */
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+@keyframes reveal {
+    from {
+        /* Círculo cerrado arriba a la izquierda */
+        clip-path: circle(0% at 0 0);
+    }
+
+    to {
+        /* Círculo abierto cubriendo todo */
+        clip-path: circle(150% at 0 0);
+    }
+}
+
+
+@keyframes wait {
+    from {
+        /* Círculo cerrado arriba a la izquierda */
+        clip-path: circle(50% at 0 0);
+    }
+
+    to {
+        /* Círculo abierto cubriendo todo */
+        clip-path: circle(100% at 0 0);
+    }
+}
+
+/* Seccion Dashboard */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Ocultar scrollbar en IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+/* Custom Scrollbar estilo Dark Mode */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #333;
+    border-radius: 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}

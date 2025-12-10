@@ -1,0 +1,92 @@
+import Link from "next/link";
+import Image from "next/image";
+import { usePlayer } from "@/context/PlayerContext";
+import LikeButton from "@/components/LikedButton";
+
+interface SongCardProps {
+    index: number;
+    image: string;
+    name: string;
+    album: string;
+    duration: number;
+    artistName: string;
+    artistId: string;
+    uri: string;
+    trackId: string;
+}
+
+export default function SongCard({ index, image, name, album, duration, artistName, artistId, uri, trackId }: SongCardProps) {
+    const { playSong } = usePlayer();
+    const formatTime = (ms: number) => {
+        const minutes = Math.floor(ms / 60000);
+        const seconds = ((ms % 60000) / 1000).toFixed(0);
+        return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
+    };
+
+    return (
+        <div onDoubleClick={() => playSong(uri)} className="group flex w-full items-center justify-between px-4 py-2 hover:bg-white/10 rounded-md transition-colors cursor-pointer">
+
+            {/* IZQUIERDA */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div
+                    className="w-6 text-center"
+                    onClick={() => playSong(uri)} // <--- CLIC PARA REPRODUCIR
+                >
+                    <span className="text-gray-400 group-hover:hidden">{index}</span>
+                    <span className="hidden group-hover:block text-white">▶</span>
+                </div>
+
+                <div className="relative w-10 h-10 flex-shrink-0">
+                    <Image
+                        className="w-full h-full rounded shadow object-cover"
+                        src={image}
+                        alt={name}
+                        fill
+                        priority
+                        sizes="40px" // <--- AGREGAR ESTO
+                    />
+                </div>
+                <div className="flex flex-col min-w-0">
+                    <h1 className="text-white text-base font-semibold truncate pr-4">{name}</h1>
+
+                    {/* Renderizado condicional: Solo ponemos Link si hay ID */}
+                    {artistId ? (
+                        <Link
+                            href={`/dashboard/artist/${artistId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-fit"
+                        >
+                            <span className="text-gray-400 text-sm truncate group-hover:text-white hover:underline">
+                                {artistName}
+                            </span>
+                        </Link>
+                    ) : (
+                        <span className="text-gray-400 text-sm truncate">
+                            {artistName}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* CENTRO */}
+            <span className="text-gray-400 text-sm w-1/3 hidden md:block truncate pr-4 group-hover:text-white">
+                {album}
+            </span>
+
+            {/* DERECHA */}
+            <div className="flex items-center gap-4 w-24 justify-end">
+                {/* 4. AQUÍ PONEMOS EL BOTÓN (Oculto hasta hacer hover) */}
+                <div
+                    onClick={(e) => e.stopPropagation()} // Evita reproducir al dar like
+                >
+                    <LikeButton trackId={trackId} />
+                </div>
+
+                <span className="text-gray-400 text-sm group-hover:text-white">
+                    {/* (Tu función formatTime) */}
+                    {Math.floor(duration / 60000)}:{((duration % 60000) / 1000).toFixed(0).padStart(2, '0')}
+                </span>
+            </div>
+        </div>
+    )
+}
