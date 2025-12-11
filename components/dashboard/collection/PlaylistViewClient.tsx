@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PlaylistCard from "@/components/dashboard/collection/PlaylistCard";
-import SongCard from "@/components/dashboard/collection/SongCard"; // Importamos tu SongCard
+import SongCard from "@/components/dashboard/collection/SongCard"; 
 import api from "@/utils/api";
 import useUser from "@/hooks/useUser"
 
@@ -21,7 +21,6 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
             if (!token) return;
 
             try {
-                // Llamamos al nuevo endpoint que creamos en el Paso 1
                 const { data } = await api.get(`/spotify/playlist/${playlistId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -38,16 +37,19 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
 
     if (loading) return <div className="text-white p-10">Cargando...</div>;
     if (!playlistData) return <div className="text-white p-10">No encontrada</div>;
+
     let ownerImage = null;
     if (user && playlistData.owner.id === user.spotifyId) {
-        ownerImage = user.image; // Si es mía, pongo MI foto
+        ownerImage = user.image; 
     } else {
-        ownerImage = playlistData.owner.images?.[0]?.url; // Si no es mía, pongo la foto del dueño
+        ownerImage = playlistData.owner.images?.[0]?.url;
     }
 
+    // --- CONTEXT URI PARA PLAYLIST ---
+    const contextUri = `spotify:playlist:${playlistData.id}`;
+
     return (
-        <div className="pb-20"> {/* Padding bottom para que no choque con el player */}
-            {/* 1. HEADER (Tu PlaylistCard) */}
+        <div className="pb-20"> 
             <PlaylistCard
                 id={playlistData.id}
                 title={playlistData.name}
@@ -57,9 +59,7 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
                 authorImg={ownerImage}
             />
 
-            {/* 2. LISTA DE CANCIONES */}
             <div className="px-6 mt-6 flex flex-col gap-1">
-                {/* Encabezados de la tabla */}
                 <div className="flex w-full text-gray-400 text-sm border-b border-gray-700 pb-2 px-4 mb-2">
                     <span className="w-10">#</span>
                     <span className="flex-1">Title</span>
@@ -69,7 +69,7 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
 
                 {playlistData.tracks.items.map((item: any, index: number) => {
                     const track = item.track;
-                    if (!track) return null; // A veces hay items vacíos
+                    if (!track) return null; 
 
                     return (
                         <SongCard
@@ -83,6 +83,8 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
                             trackId={track.id}
                             album={track.album.name}
                             duration={track.duration_ms}
+                            // Pasamos el contexto de playlist
+                            contextUri={contextUri}
                         />
                     );
                 })}

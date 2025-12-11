@@ -18,23 +18,14 @@ export default function Login() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-
-        try {
-            const { data } = await api.post('/auth/login', form);
-            localStorage.setItem('token', data.access_token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            router.push('/dashboard');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Credenciales incorrectas');
-        }
+        // Lógica deshabilitada
+        return; 
     };
 
     return (
         <div className="relative w-full h-screen bg-black overflow-hidden">
 
-            {/* 1. IMAGEN DE FONDO (Z-0) */}
-            {/* En móvil se ve completa. En escritorio (lg) la opacidad baja porque hay un sidebar blanco encima */}
+            {/* 1. IMAGEN DE FONDO */}
             <Image
                 src="/assets/auth/LoginBackground.png"
                 alt="Login Background"
@@ -43,25 +34,18 @@ export default function Login() {
                 priority
             />
 
-            {/* 2. DEGRADADO MÓVIL (Visible solo en móvil) */}
-            {/* Esto oscurece el fondo para que el texto blanco se lea bien sobre la imagen */}
+            {/* 2. DEGRADADO MÓVIL */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-0 lg:hidden"></div>
 
-            {/* 3. CONTENEDOR PRINCIPAL (Z-10) */}
+            {/* 3. CONTENEDOR PRINCIPAL */}
             <div className="relative z-10 flex flex-col h-full lg:flex-row lg:justify-end">
 
                 {/* 4. CAJA DEL FORMULARIO */}
-                {/* 
-                    Móvil: w-full, fondo transparente (para ver imagen), texto blanco, justificado abajo/centro
-                    Escritorio (lg): w-[40rem], fondo blanco, texto negro, altura completa
-                */}
                 <div className="w-full lg:w-[40rem] h-full flex flex-col justify-center px-8 pb-10 lg:pb-0 
                                 bg-transparent lg:bg-white 
                                 text-white lg:text-black transition-colors duration-300">
 
-                    {/* Botón Regresar */}
                     <Link href="/" className="absolute lg:top-6 lg:left-6 right-6 top-5 hover:opacity-70 transition-opacity">
-                        {/* El icono cambia de color: blanco en móvil, negro en escritorio */}
                         <ArrowLeft size={35} className="text-white lg:text-black" />
                     </Link>
 
@@ -71,60 +55,64 @@ export default function Login() {
 
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-                        {/* Label: blanco en móvil, negro en escritorio */}
-                        <label htmlFor="email" className="font-bold text-white lg:text-black">Email</label>
+                        <label htmlFor="email" className="font-bold text-white lg:text-black opacity-50">Email</label>
                         <input
                             name="email"
                             type="email"
-                            placeholder="example@mail.com"
-                            /* Inputs: Fondo semitransparente en móvil para estilo moderno, borde gris */
+                            disabled={true} // DESHABILITADO
+                            placeholder="Deshabilitado temporalmente"
                             className="p-3 rounded-lg border border-gray-400/50 
-                                     bg-white/10 lg:bg-white 
-                                     text-white lg:text-black 
-                                     placeholder-gray-300 lg:placeholder-gray-500
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     bg-white/10 lg:bg-gray-100 
+                                     text-white lg:text-gray-500 
+                                     placeholder-gray-400 
+                                     focus:outline-none 
+                                     opacity-50 cursor-not-allowed" // ESTILOS DE DESHABILITADO
                             onChange={handleChange}
-                            required
                         />
 
-                        <label htmlFor="password" className="font-bold text-white lg:text-black">Password</label>
+                        <label htmlFor="password" className="font-bold text-white lg:text-black opacity-50">Password</label>
                         <input
                             name="password"
                             type="password"
-                            placeholder="Password"
+                            disabled={true} // DESHABILITADO
+                            placeholder="••••••"
                             className="p-3 rounded-lg border border-gray-400/50 
-                                     bg-white/10 lg:bg-white 
-                                     text-white lg:text-black 
-                                     placeholder-gray-300 lg:placeholder-gray-500
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     bg-white/10 lg:bg-gray-100 
+                                     text-white lg:text-gray-500 
+                                     placeholder-gray-400 
+                                     focus:outline-none 
+                                     opacity-50 cursor-not-allowed" // ESTILOS DE DESHABILITADO
                             onChange={handleChange}
-                            required
                         />
 
                         {error && <p className="text-red-400 lg:text-red-500 font-bold bg-black/20 lg:bg-transparent p-2 rounded">{error}</p>}
 
-                        <Link href="/forgot-password" className="text-right text-gray-300 lg:text-gray-500 hover:text-white lg:hover:text-black transition-colors">
+                        {/* Link deshabilitado con pointer-events-none */}
+                        <Link href="/forgot-password" className="text-right text-gray-400 pointer-events-none opacity-50">
                             Forgot Password?
                         </Link>
 
-                        {/* Botones: Se mantienen similares, ajustando sombras */}
+                        <span>It's only available now on Spotify</span>
                         <a
-                            href="http://localhost:9000/auth/spotify" // <-- Apunta directo a tu backend
-                            className="bg-black text-white p-2 rounded-lg hover:bg-gray-900 transition flex justify-center items-center gap-2 mt-2 w-full"
+                            href="http://localhost:9000/auth/spotify" 
+                            className="bg-black text-white p-2 rounded-lg hover:bg-gray-900 transition flex justify-center items-center gap-2 mt-4 w-full border border-white/20 lg:border-transparent cursor-pointer relative z-50"
                         >
-                            <BsSpotify size={25} className="text-green-500" /> {/* Usa un icono de Spotify */}
+                            <BsSpotify size={25} className="text-green-500" /> 
                             <span>Sign in with Spotify</span>
                         </a>
 
+                        {/* Botón Login deshabilitado */}
                         <button
+                            disabled={true} // SIEMPRE DESHABILITADO
                             type="submit"
-                            className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition font-bold mt-2 shadow-lg shadow-blue-900/20"
+                            className="bg-blue-600/50 text-white/50 p-3 rounded-lg font-bold mt-2 shadow-none cursor-not-allowed"
                         >
-                            Login
+                            Login (Disabled)
                         </button>
 
-                        <p className="text-center font-saira mt-6 text-gray-200 lg:text-black">
-                            Don't have an account? <Link href="/register" className="text-blue-400 lg:text-blue-600 font-bold hover:underline">Register</Link>
+                        {/* Link Registro deshabilitado */}
+                        <p className="text-center font-saira mt-6 text-gray-500 lg:text-gray-400 opacity-50">
+                            Don't have an account? <span className="text-blue-400/50 font-bold cursor-not-allowed">Register</span>
                         </p>
                     </form>
                 </div>

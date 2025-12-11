@@ -18,7 +18,8 @@ interface PlayerContextType {
     togglePlay: () => void;
     nextTrack: () => void;
     prevTrack: () => void;
-    playSong: (uri: string) => void;
+    // --- CAMBIO 1: Actualizar firma de playSong ---
+    playSong: (uri: string, contextUri?: string, queue?: string[]) => void;
     deviceId: string | null;
     position: number;
     duration: number;
@@ -77,9 +78,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch (error) { console.error(error); }
     };
 
-
-
     const syncState = useCallback(async () => {
+        if (document.hidden) return; 
         if (Date.now() - lastUserAction.current < 2000) return;
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -136,7 +136,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         syncState();
-        const interval = setInterval(syncState, 5000);
+        const interval = setInterval(syncState, 6000);
         return () => clearInterval(interval);
     }, [syncState]);
 
@@ -264,25 +264,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setTimeout(syncState, 500);
     };
 
-    const playSong = async (uri: string) => {
+    // --- CAMBIO 2: Lógica inteligente en playSong ---
+    const playSong = async (uri: string, contextUri?: string, queue?: string[]) => {
         if (!deviceId) {
             console.error("⚠️ Player no listo");
             return;
         }
         const token = localStorage.getItem("token");
+
+        // LÓGICA:
+        // 1. Si hay contextUri (Playlist/Album), Spotify usa 'offset' para saber dónde empezar.
+        //    Solo mandamos [uriActual] en 'uris'.
+        // 2. Si NO hay contextUri (Favoritos/Busqueda), mandamos la cola manual en 'uris'.
+        
+        let urisToSend = [uri];
+
+        if (!contextUri && queue && queue.length > 0) {
+            // Estamos en modo lista suelta, enviamos la cola
+            urisToSend = queue;
+        }
+
+        const body = { 
+            deviceId: deviceId, 
+            uris: urisToSend, 
+            contextUri: contextUri 
+        };
+
         try {
-            await api.put('/spotify/play',
-                { deviceId: deviceId, uri: uri },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
         } catch (error) {
+            // Intento de recuperación si el dispositivo estaba inactivo
             await transferPlayback(deviceId);
             setTimeout(async () => {
                 try {
-                    await api.put('/spotify/play',
-                        { deviceId: deviceId, uri: uri },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
+                    await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
                 } catch (e) { }
             }, 1000);
         }

@@ -2,6 +2,7 @@ import LandingHeader from "@/components/headers/LandingHeader";
 import Hero from "@/components/main/Hero";
 import Carrousel from "@/components/main/Carrousel";
 import Footer from "@/components/footer/Footer";
+import Credits from "@/components/main/Credits";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function Home() {
       <LandingHeader />
       <Hero />
       <Carrousel />
+      <Credits />
       <Footer />
     </div>
   );

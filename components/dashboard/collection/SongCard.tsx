@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePlayer } from "@/context/PlayerContext";
-import LikeButton from "@/components/LikedButton";
+import LikeButton from "@/components/dashboard/collection/LikedButton";
 
 interface SongCardProps {
     index: number;
@@ -13,24 +13,47 @@ interface SongCardProps {
     artistId: string;
     uri: string;
     trackId: string;
+    // --- NUEVAS PROPS ---
+    contextUri?: string; // Para playlists
+    queue?: string[];    // Para favoritos/búsqueda
 }
 
-export default function SongCard({ index, image, name, album, duration, artistName, artistId, uri, trackId }: SongCardProps) {
-    const { playSong } = usePlayer();
+export default function SongCard({ 
+    index, image, name, album, duration, artistName, artistId, uri, trackId,
+    contextUri, 
+    queue 
+}: SongCardProps) {
+    
+    const { playSong, currentTrack } = usePlayer();
+    const isCurrentTrack = currentTrack?.id === trackId;
+    
     const formatTime = (ms: number) => {
         const minutes = Math.floor(ms / 60000);
         const seconds = ((ms % 60000) / 1000).toFixed(0);
         return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
     };
 
+    // Función auxiliar para manejar el play con todas las variables
+    const handlePlay = () => {
+        playSong(uri, contextUri, queue);
+    };
+
+    const cleanArtistId = artistId?.replace("spotify:artist:", "");
+
     return (
-        <div onDoubleClick={() => playSong(uri)} className="group flex w-full items-center justify-between px-4 py-2 hover:bg-white/10 rounded-md transition-colors cursor-pointer">
+        <div 
+            onDoubleClick={handlePlay} 
+            className="group flex w-full items-center justify-between px-4 py-2 hover:bg-white/10 rounded-md transition-colors cursor-pointer"
+        >
 
             {/* IZQUIERDA */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div
                     className="w-6 text-center"
-                    onClick={() => playSong(uri)} // <--- CLIC PARA REPRODUCIR
+                    onClick={(e) => {
+                        e.stopPropagation(); // Evita conflictos
+                        handlePlay();
+                    }} 
                 >
                     <span className="text-gray-400 group-hover:hidden">{index}</span>
                     <span className="hidden group-hover:block text-white">▶</span>
@@ -43,16 +66,17 @@ export default function SongCard({ index, image, name, album, duration, artistNa
                         alt={name}
                         fill
                         priority
-                        sizes="40px" // <--- AGREGAR ESTO
+                        sizes="40px"
                     />
                 </div>
                 <div className="flex flex-col min-w-0">
-                    <h1 className="text-white text-base font-semibold truncate pr-4">{name}</h1>
+                    <h1 className={`text-base font-semibold truncate pr-4 ${isCurrentTrack ? "text-green-500 animate-pulse" : "text-white"}`}>
+                        {name}
+                    </h1>
 
-                    {/* Renderizado condicional: Solo ponemos Link si hay ID */}
-                    {artistId ? (
+                    {cleanArtistId && cleanArtistId !== "undefined" && cleanArtistId !== "" ? (
                         <Link
-                            href={`/dashboard/artist/${artistId}`}
+                            href={`/dashboard/artist/${cleanArtistId}`}
                             onClick={(e) => e.stopPropagation()}
                             className="w-fit"
                         >
@@ -61,7 +85,7 @@ export default function SongCard({ index, image, name, album, duration, artistNa
                             </span>
                         </Link>
                     ) : (
-                        <span className="text-gray-400 text-sm truncate">
+                        <span className="text-gray-400 text-sm truncate cursor-default">
                             {artistName}
                         </span>
                     )}
@@ -75,15 +99,11 @@ export default function SongCard({ index, image, name, album, duration, artistNa
 
             {/* DERECHA */}
             <div className="flex items-center gap-4 w-24 justify-end">
-                {/* 4. AQUÍ PONEMOS EL BOTÓN (Oculto hasta hacer hover) */}
-                <div
-                    onClick={(e) => e.stopPropagation()} // Evita reproducir al dar like
-                >
+                <div onClick={(e) => e.stopPropagation()}>
                     <LikeButton trackId={trackId} />
                 </div>
 
                 <span className="text-gray-400 text-sm group-hover:text-white">
-                    {/* (Tu función formatTime) */}
                     {Math.floor(duration / 60000)}:{((duration % 60000) / 1000).toFixed(0).padStart(2, '0')}
                 </span>
             </div>

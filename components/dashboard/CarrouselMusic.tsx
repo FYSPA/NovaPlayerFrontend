@@ -5,54 +5,65 @@ import Link from "next/link";
 import Image from "next/image";
 import { Play, Music } from "lucide-react";
 import api from "@/utils/api";
+import { useRouter } from "next/navigation"; 
 
-interface Playlist {
-    id: string;
-    name: string;
-    images: { url: string }[];
-    owner: {
-        display_name: string;
-        id: string; // <--- IMPORTANTE: El ID del dueño
-    };
-}
+export default function CarrouselMusic({ title, type }: { title: string, type: "new-releases" | "featured" }) {
 
-interface CarrouselProps {
-    title: string;
-    type: "user" | "featured";
-    // artistId?: string; <--- BORRAR ESTO, no se usa aquí
-}
-
-export default function CarrouselMusic({ title, type }: CarrouselProps) {
-
-    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         const fetchData = async () => {
             const token = localStorage.getItem("token");
             if (!token) return;
 
-            try {
-                let url = "";
-                if (type === "user") url = "/spotify/playlists";
-                else if (type === "featured") url = "/spotify/featured";
+            let url = "";
+            if (type === "new-releases") url = "/spotify/new-releases";
+            else if (type === "featured") url = "/spotify/featured";
 
+            try {
                 const { data } = await api.get(url, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+                
+                // --- SOLUCIÓN DEL ERROR ---
+                // Validamos estrictamente qué nos llegó para asegurarnos de guardar SIEMPRE un Array
+                let itemsList: any[] = [];
 
-                setPlaylists(data);
-            } catch (error) {
-                console.error(`Error cargando carrusel ${type}`, error);
+                if (data?.albums?.items && Array.isArray(data.albums.items)) {
+                    itemsList = data.albums.items;
+                } 
+                else if (data?.playlists?.items && Array.isArray(data.playlists.items)) {
+                    itemsList = data.playlists.items;
+                }
+                else if (Array.isArray(data)) {
+                    itemsList = data;
+                }
+                // Caso extra: A veces Spotify devuelve { items: [...] } directamente
+                else if (data?.items && Array.isArray(data.items)) {
+                    itemsList = data.items;
+                }
+
+                setItems(itemsList);
+
+            } catch (error: any) {
+                console.error(`Error cargando ${type}:`, error);
+                if (error.response && error.response.status === 401) {
+                    // Manejo silencioso de error 401 o redirección
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, [type]);
+    }, [type, router]);
 
-    if (loading) return <div className="text-white px-4">Cargando {title}...</div>;
+    if (loading) return <div className="h-40 flex items-center justify-center text-gray-500">Cargando...</div>;
+    
+    // Si no es un array o está vacío, no renderizamos nada para evitar errores
+    if (!Array.isArray(items) || items.length === 0) return null;
 
     return (
         <div className="w-full">
@@ -60,45 +71,46 @@ export default function CarrouselMusic({ title, type }: CarrouselProps) {
 
             <div className="flex overflow-x-auto custom-scrollbar gap-6 pb-4 px-2">
 
-                {playlists.length === 0 && !loading && (
-                    <div className="text-gray-500 italic p-4">No se encontraron playlists.</div>
-                )}
+                {items.map((item) => {
+                    if (!item || !item.id) return null;
 
-                {playlists.map((playlist) => {
-                    if (!playlist || !playlist.id) return null;
+                    // --- LÓGICA DINÁMICA ---
+                    const isAlbum = item.type === 'album';
+                    
+                    const name = item.name;
+                    const image = item.images?.[0]?.url;
+                    
+                    let subtitle = "";
+                    let subLink = "#";
 
-                    // --- OBTENER EL ID DEL DUEÑO AQUÍ ---
-                    const ownerId = playlist.owner?.id;
-                    const ownerName = playlist.owner?.display_name || "Spotify";
+                    if (isAlbum) {
+                        subtitle = item.artists?.[0]?.name || "Varios Artistas";
+                        subLink = `/dashboard/artist/${item.artists?.[0]?.id}`;
+                    } else {
+                        // Playlist
+                        subtitle = `By ${item.owner?.display_name || "Spotify"}`;
+                        subLink = item.owner?.id ? `/dashboard/profile/${item.owner.id}` : "#";
+                    }
+
+                    const cardHref = `/dashboard/collection/${item.id}`; 
 
                     return (
-                        <div key={playlist.id} className="flex-shrink-0 w-[200px] group cursor-pointer">
+                        <div key={item.id} className="flex-shrink-0 w-[200px] group cursor-pointer">
                             <QuickCard
-                                title={playlist.name || "Sin nombre"}
-                                image={playlist.images?.[0]?.url}
-                                href={`/dashboard/collection/${playlist.id}`}
+                                title={name || "Sin nombre"}
+                                image={image}
+                                href={cardHref}
                             />
                             <div className="mt-3">
                                 <h3 className="text-base font-bold text-white truncate hover:underline">
-                                    {playlist.name}
+                                    {name}
                                 </h3>
-
-                                {/* ENLACE AL PERFIL DEL DUEÑO */}
-                                {ownerId ? (
-                                    <Link
-                                        // Nota: Si el dueño es un usuario normal y no un artista, 
-                                        // la página de 'artist' podría no cargar bien sus datos, 
-                                        // pero el link funcionará.
-                                        href={`/dashboard/profile/${ownerId}`}
-                                        className="text-sm font-medium text-gray-400 hover:underline"
-                                    >
-                                        By {ownerName}
-                                    </Link>
-                                ) : (
-                                    <span className="text-sm font-medium text-gray-400">
-                                        By {ownerName}
-                                    </span>
-                                )}
+                                <Link
+                                    href={subLink}
+                                    className="text-sm font-medium text-gray-400 hover:underline block truncate"
+                                >
+                                    {subtitle}
+                                </Link>
                             </div>
                         </div>
                     );
@@ -109,20 +121,19 @@ export default function CarrouselMusic({ title, type }: CarrouselProps) {
     );
 }
 
-// --- COMPONENTE QUICKCARD (Tu diseño intacto + Next Image) ---
+// --- COMPONENTE QUICKCARD ---
 function QuickCard({ title, image, href }: any) {
     return (
         <Link
             href={href}
             className="group relative flex items-center rounded-md overflow-hidden transition-all duration-300 shadow-sm h-48 w-full hover:shadow-xl bg-[#1A1A1A]"
         >
-            {/* 1. FONDO */}
             <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">
                 {image ? (
                     <Image
                         src={image}
                         alt={title}
-                        fill // Ocupa todo el contenedor
+                        fill
                         className="object-cover blur-sm scale-110 opacity-80 group-hover:blur-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-500"
                     />
                 ) : (
@@ -130,17 +141,11 @@ function QuickCard({ title, image, href }: any) {
                         <Music size={64} className="text-gray-600 group-hover:text-white transition-colors" />
                     </div>
                 )}
-
-                {/* Capa oscura */}
                 <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-colors duration-300"></div>
             </div>
-
-            {/* 2. TÍTULO */}
             <span className="absolute bottom-4 left-4 z-10 font-bold text-white text-lg line-clamp-2 drop-shadow-lg group-hover:opacity-0 transition-opacity duration-300 pr-2">
                 {title}
             </span>
-
-            {/* 3. BOTÓN PLAY */}
             <div className="absolute right-3 bottom-3 z-20 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl rounded-full">
                 <div className="bg-green-500 rounded-full p-3 hover:scale-105 hover:bg-green-400 transition text-black shadow-lg">
                     <Play size={20} fill="black" className="ml-1" />

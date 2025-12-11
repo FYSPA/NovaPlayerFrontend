@@ -83,7 +83,7 @@ export default function NowPlayingSidebar() {
         return (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4 p-4 text-center bg-[#121212]">
                 <div className="w-16 h-16 bg-[#1f1f1f] rounded-lg flex items-center justify-center"><Music size={32} /></div>
-                <p>Reproduce música para empezar.</p>
+                <p>Play music to get started.</p>
             </div>
         );
     }
@@ -154,17 +154,17 @@ export default function NowPlayingSidebar() {
                             <div className="relative overflow-hidden rounded-lg group/card cursor-pointer h-40">
                                 <Image src={artistImage || albumCover || "/placeholder.png"} alt="Promo" fill className="object-cover opacity-60 group-hover/card:opacity-100 transition-opacity duration-500 hover:scale-105" />
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
-                                    <span className="text-white px-4 py-2 rounded-full font-bold text-sm border border-white">Ver perfil</span>
+                                    <span className="text-white px-4 py-2 rounded-full font-bold text-sm border border-white">See profile</span>
                                 </div>
                             </div>
                         </Link>
                         <div className="p-4">
                             <h3 className="text-white font-bold mb-1">{artistName}</h3>
                             <div className="flex items-center justify-between pb-4">
-                                <span className="text-gray-400 text-sm">{artistInfo ? formatNumber(artistInfo.followers.total) : "..."} seguidores</span>
+                                <span className="text-gray-400 text-sm">{artistInfo ? formatNumber(artistInfo.followers.total) : "..."} followers</span>
                                 <button onClick={handleFollow} className={`font-bold px-4 py-1.5 rounded-full text-xs transition flex items-center gap-2 ${isFollowing ? "border border-gray-500 text-white hover:border-white bg-transparent" : "bg-white text-black hover:scale-105"}`}>{isFollowing ? "Siguiendo" : "Seguir"}</button>
                             </div>
-                            <p className="text-gray-400 text-xs line-clamp-3">Escuchando a {artistName} en NovaPlayer.</p>
+                            <p className="text-gray-400 text-xs line-clamp-3">Listening to {artistName} in NovaPlayer.</p>
                         </div>
                     </div>
                     <div className="h-10"></div>
