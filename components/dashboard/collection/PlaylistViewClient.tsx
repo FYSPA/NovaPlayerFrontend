@@ -5,6 +5,8 @@ import PlaylistCard from "@/components/dashboard/collection/PlaylistCard";
 import SongCard from "@/components/dashboard/collection/SongCard"; 
 import api from "@/utils/api";
 import useUser from "@/hooks/useUser"
+import { usePlayer } from "@/context/PlayerContext";
+
 
 interface PlaylistViewClientProps {
     playlistId: string;
@@ -14,6 +16,11 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
     const [playlistData, setPlaylistData] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const { user, loading: userLoading } = useUser();
+    const { playSong } = usePlayer(); // <--- 2. Obtener función
+
+    const handlePlayTrack = (trackUri: string) => {
+       playSong([trackUri], `spotify:playlist:${playlistId}`);
+    };
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -83,7 +90,7 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
                             trackId={track.id}
                             album={track.album.name}
                             duration={track.duration_ms}
-                            // Pasamos el contexto de playlist
+                             onPlay={() => handlePlayTrack(track.uri)}
                             contextUri={contextUri}
                         />
                     );

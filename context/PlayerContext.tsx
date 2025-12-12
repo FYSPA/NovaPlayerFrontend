@@ -18,8 +18,13 @@ interface PlayerContextType {
     togglePlay: () => void;
     nextTrack: () => void;
     prevTrack: () => void;
-    // --- CAMBIO 1: Actualizar firma de playSong ---
-    playSong: (uri: string, contextUri?: string, queue?: string[]) => void;
+    
+    // --- CORRECCIÓN 1: Simplificamos la firma ---
+    // Recibe un ARRAY de strings.
+    // Si es Playlist: Mandas [uri_cancion] y el contextUri.
+    // Si es Favoritos/Artista: Mandas [cancion1, cancion2, cancion3...] y contextUri undefined.
+    playSong: (uris: string[], contextUri?: string) => void;
+    
     deviceId: string | null;
     position: number;
     duration: number;
@@ -79,8 +84,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
 
     const syncState = useCallback(async () => {
+        // Optimización: Si la pestaña no está visible, no hacemos polling para ahorrar recursos
         if (document.hidden) return; 
         if (Date.now() - lastUserAction.current < 2000) return;
+        
         const token = localStorage.getItem("token");
         if (!token) return;
 
@@ -133,10 +140,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
     };
 
-
     useEffect(() => {
         syncState();
-        const interval = setInterval(syncState, 6000);
+        const interval = setInterval(syncState, 5000); // 5000ms es un buen balance
         return () => clearInterval(interval);
     }, [syncState]);
 
@@ -220,7 +226,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
             } catch (error) {
-                console.error("Error al pausar", error);
                 setIsPaused(false);
             }
             return;
@@ -243,7 +248,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 setIsActive(true);
             }
         } catch (error) {
-            console.error("Error al reproducir", error);
             setIsPaused(true);
         }
     };
@@ -264,36 +268,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setTimeout(syncState, 500);
     };
 
-    // --- CAMBIO 2: Lógica inteligente en playSong ---
-    const playSong = async (uri: string, contextUri?: string, queue?: string[]) => {
+    // --- CAMBIO 2: playSong Simplificado y Robusto ---
+    // Acepta un ARRAY de URIs y un Contexto opcional
+    const playSong = async (uris: string[], contextUri?: string) => {
         if (!deviceId) {
             console.error("⚠️ Player no listo");
             return;
         }
         const token = localStorage.getItem("token");
-
-        // LÓGICA:
-        // 1. Si hay contextUri (Playlist/Album), Spotify usa 'offset' para saber dónde empezar.
-        //    Solo mandamos [uriActual] en 'uris'.
-        // 2. Si NO hay contextUri (Favoritos/Busqueda), mandamos la cola manual en 'uris'.
-        
-        let urisToSend = [uri];
-
-        if (!contextUri && queue && queue.length > 0) {
-            // Estamos en modo lista suelta, enviamos la cola
-            urisToSend = queue;
-        }
+        lastUserAction.current = Date.now();
 
         const body = { 
             deviceId: deviceId, 
-            uris: urisToSend, 
+            uris: uris,       // Enviamos el array tal cual
             contextUri: contextUri 
         };
 
         try {
             await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
         } catch (error) {
-            // Intento de recuperación si el dispositivo estaba inactivo
             await transferPlayback(deviceId);
             setTimeout(async () => {
                 try {
@@ -312,7 +305,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             togglePlay,
             nextTrack,
             prevTrack,
-            playSong,
+            playSong, // Ahora usa la versión limpia
             position,
             duration,
             seek,

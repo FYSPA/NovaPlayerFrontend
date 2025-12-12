@@ -131,9 +131,10 @@ export default function ArtistDynamicPage() {
 
     const handlePlayAll = () => {
         if (topTracks.length === 0) return;
-        const firstTrackUri = topTracks[0].uri;
+        // Creamos la lista de URIs
         const queue = topTracks.map(t => t.uri);
-        playSong(firstTrackUri, undefined, queue);
+        // Enviamos SOLO la lista
+        playSong(queue); 
     };
 
     const formatNumber = (num: number) => new Intl.NumberFormat("es-ES").format(num);
@@ -234,7 +235,10 @@ export default function ArtistDynamicPage() {
                             const queue = topTracks.slice(index, index + 50).map(t => t.uri);
                             
                             const handlePlayTrack = () => {
-                                playSong(track.uri, undefined, queue);
+                                // Creamos la cola desde la canción clicada hasta el final
+                                const queue = topTracks.slice(index).map(t => t.uri);
+                                // Enviamos SOLO la lista
+                                playSong(queue);
                             };
 
                             return (

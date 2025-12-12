@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 import { useState, useEffect, useRef, Suspense } from "react"; // <--- Agregamos Suspense
 import { Search, X } from "lucide-react";
 import api from "@/utils/api";
@@ -6,6 +6,7 @@ import SongCard from "@/components/dashboard/collection/SongCard";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { usePlayer } from "@/context/PlayerContext";
 
 // --- TIPOS ---
 interface SearchResults {
@@ -15,6 +16,7 @@ interface SearchResults {
 
 // --- 1. LÓGICA PRINCIPAL (Donde ocurre la magia) ---
 function SearchContent() {
+    const { playSong } = usePlayer();
     const searchParams = useSearchParams();
     const queryFromUrl = searchParams.get("q");
 
@@ -23,6 +25,11 @@ function SearchContent() {
     const [results, setResults] = useState<SearchResults | null>(null);
     const [loading, setLoading] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    const handlePlayTrack = (uri: string) => {
+        // En búsqueda, mandamos la canción como una lista de 1 elemento
+        playSong([uri]); 
+    };
 
     // Efecto: Si cambia la URL (por el Header), actualizamos el input
     useEffect(() => {
@@ -126,6 +133,7 @@ function SearchContent() {
                                         trackId={track.id}
                                         album={track.album.name}
                                         duration={track.duration_ms}
+                                        onPlay={() => handlePlayTrack(track.uri)}
                                     />
                                 ))}
                             </div>

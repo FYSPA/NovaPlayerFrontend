@@ -20,6 +20,11 @@ export default function FavoritesPage() {
     const router = useRouter();
     const { playSong } = usePlayer(); 
 
+    const handlePlayTrack = (startIndex: number) => {
+        const queue = tracks.slice(startIndex).map(item => item.track.uri);
+        playSong(queue); // Enviamos el array
+    };
+
     const fetchTracks = async (offset: number) => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -93,7 +98,7 @@ export default function FavoritesPage() {
         const firstTrack = tracks[0].track;
         // Creamos la cola con las primeras 50 canciones para no saturar la petición
         const queue = tracks.slice(0, 50).map(t => t.track.uri);
-        playSong(firstTrack.uri, undefined, queue);
+        handlePlayTrack(0);
     };
 
     if (!user) return null;
@@ -165,8 +170,8 @@ export default function FavoritesPage() {
                                 trackId={track.id}
                                 album={track.album.name}
                                 duration={track.duration_ms}
-                                // Pasamos la cola calculada
                                 queue={queue}
+                                 onPlay={() => handlePlayTrack(track.uri)}
                             />
                         );
                     })}

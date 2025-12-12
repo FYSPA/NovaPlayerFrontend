@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePlayer } from "@/context/PlayerContext";
 import LikeButton from "@/components/dashboard/collection/LikedButton";
+import { Play } from "lucide-react";
 
 interface SongCardProps {
     index: number;
@@ -12,8 +13,8 @@ interface SongCardProps {
     artistName: string;
     artistId: string;
     uri: string;
-    trackId: string;
-    // --- NUEVAS PROPS ---
+    onPlay: () => void;
+    trackId: string
     contextUri?: string; // Para playlists
     queue?: string[];    // Para favoritos/búsqueda
 }
@@ -35,7 +36,18 @@ export default function SongCard({
 
     // Función auxiliar para manejar el play con todas las variables
     const handlePlay = () => {
-        playSong(uri, contextUri, queue);
+        if (contextUri) {
+            // CASO 1: Playlist o Álbum (Contexto)
+            // Enviamos [uri] como array para el offset, y el contextUri
+            playSong([uri], contextUri);
+        } else if (queue && queue.length > 0) {
+            // CASO 2: Favoritos o Artista (Lista sin contexto)
+            // Enviamos la cola calculada por el padre
+            playSong(queue); 
+        } else {
+            // CASO 3: Canción suelta
+            playSong([uri]);
+        }
     };
 
     const cleanArtistId = artistId?.replace("spotify:artist:", "");
