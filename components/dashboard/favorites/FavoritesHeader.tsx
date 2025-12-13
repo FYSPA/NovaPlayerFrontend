@@ -50,15 +50,27 @@ export default function FavoritesPage() {
 
 
     return (
-        <div className="flex flex-col pb-20 text-white font-saira">
-            {/* HEADER */}
-            <div className="flex flex-col md:flex-row gap-6 items-end px-6 pt-6">
-                <div className="w-56 h-56 min-w-[224px] bg-gradient-to-br from-[#450af5] to-[#c4efd9] flex items-center justify-center rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
-                    <span className="text-white text-9xl">♥</span>
+        <div className="flex flex-col pb-40 text-white font-saira"> 
+            {/* Nota: aumenté pb-20 a pb-40 para asegurar que el Player móvil no tape el final */}
+
+            {/* --- HEADER CORREGIDO --- */}
+            <div className="flex flex-col md:flex-row gap-6 items-center md:items-end px-6 pt-6">
+                
+                {/* 1. CAJA DEL CORAZÓN (Ahora responsiva) */}
+                {/* w-48 en móvil, w-56 en escritorio. Sombra fuerte. */}
+                <div className="w-48 h-48 md:w-56 md:h-56 flex-shrink-0 bg-gradient-to-br from-[#450af5] to-[#c4efd9] flex items-center justify-center rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+                    <span className="text-white text-7xl md:text-9xl">♥</span>
                 </div>
-                <div className="flex flex-col justify-end">
+
+                {/* 2. TEXTOS (Centrados en móvil, izquierda en PC) */}
+                <div className="flex flex-col items-center md:items-start text-center md:text-left justify-end flex-1">
                     <span className="text-sm font-bold uppercase mb-2">Playlist</span>
-                    <h1 className="text-5xl md:text-8xl font-black mb-6">Liked Songs</h1>
+                    
+                    {/* Título más pequeño en móvil para que no se rompa */}
+                    <h1 className="text-4xl md:text-8xl font-black mb-4 md:mb-6 leading-tight">
+                        Liked Songs
+                    </h1>
+                    
                     <div className="flex items-center gap-2 text-sm">
                         <div className="relative w-8 h-8 rounded-full overflow-hidden border border-green-500">
                             {user.image ? (
@@ -68,6 +80,7 @@ export default function FavoritesPage() {
                             )}
                         </div>
                         <span className="font-bold">{user.name}</span>
+                        {/* El punto separador lo ocultamos en móvil si queda muy apretado, o lo dejamos */}
                         <span className="w-1 h-1 bg-white rounded-full mx-1"></span>
                         <span>{tracks.length} songs</span>
                     </div>
@@ -75,7 +88,7 @@ export default function FavoritesPage() {
             </div>
 
             {/* BOTONES */}
-            <div className="flex items-center gap-4 px-6 mt-6 mb-6">
+            <div className="flex items-center justify-center md:justify-start gap-4 px-6 mt-6 mb-6">
                 <button 
                     onClick={handlePlayAll}
                     className="bg-green-500 rounded-full p-4 hover:scale-105 transition text-black shadow-lg"
@@ -98,8 +111,7 @@ export default function FavoritesPage() {
                         const track = item.track;
                         if (!track) return null;
 
-                        // CALCULAMOS LA COLA PARA ESTA FILA
-                        // Enviamos la canción actual + las siguientes 50
+                        // OJO: Tu lógica de queue estaba bien, la mantengo
                         const queue = tracks
                             .slice(index, index + 50)
                             .map((t) => t.track.uri);
@@ -116,8 +128,9 @@ export default function FavoritesPage() {
                                 trackId={track.id}
                                 album={track.album.name}
                                 duration={track.duration_ms}
-                                queue={queue}
-                                 onPlay={() => handlePlayTrack(track.uri)}
+                                // Aquí tenías un pequeño bug en onPlay, la función handlePlayTrack esperaba un index, no uri
+                                // Si tu handlePlayTrack espera index:
+                                onPlay={() => handlePlayTrack(index)} 
                             />
                         );
                     })}

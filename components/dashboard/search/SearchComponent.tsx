@@ -1,37 +1,26 @@
- "use client";
-import { useState, useEffect, useRef, Suspense } from "react"; // <--- Agregamos Suspense
+"use client";
+import { Suspense } from "react";
 import { Search, X } from "lucide-react";
-import api from "@/utils/api";
+import Link from "next/link"; // <--- 1. IMPORTANTE: Faltaba importar Link
 import SongCard from "@/components/dashboard/collection/SongCard";
-import Link from "next/link";
-import Image from "next/image";
-import { useSearchParams } from "next/navigation";
-import { usePlayer } from "@/context/PlayerContext";
-import { useSearch } from "@/hooks/useSearch";
+import ArtistCard from "@/components/dashboard/search/ArtistCard";
+import GenreCard from "@/components/dashboard/search/GenreCard";
+import { useSearchPage } from "@/hooks/useSearchPage"; 
+// 2. IMPORTANTE: Usamos useCategories, no useCategoryPlaylists
+import { useCategories } from "@/hooks/useCategories"; 
 
-// --- TIPOS ---
-interface SearchResults {
-    tracks?: { items: any[] };
-    artists?: { items: any[] };
-}
-
-// --- 1. LÓGICA PRINCIPAL (Donde ocurre la magia) ---
 function SearchContent() {
-    const searchParams = useSearchParams();
-    const queryFromUrl = searchParams.get("q") || "";
+    const { 
+        query, 
+        setQuery, 
+        results, 
+        loading, 
+        handlePlayTrack, 
+        clearQuery 
+    } = useSearchPage();
 
-    // 2. USAMOS EL HOOK (Mira qué corto queda)
-    const { query, setQuery, results, loading } = useSearch(queryFromUrl);
-    
-    const { playSong } = usePlayer();
-
-    // Sincronizar URL con estado si cambia desde el Header
-    useEffect(() => {
-        if(queryFromUrl !== query) setQuery(queryFromUrl);
-    }, [queryFromUrl]);
-
-    // Función simple de play
-    const handlePlayTrack = (uri: string) => playSong([uri]);
+    // 3. Traemos las categorías (Pop, Rock, etc)
+    const { categories } = useCategories(); 
 
     return (
         <div className="flex flex-col gap-8 pb-20 px-4 md:px-8 font-saira bg-transparent">
@@ -50,7 +39,7 @@ function SearchContent() {
                         autoFocus
                     />
                     {query && (
-                        <button onClick={() => setQuery("")} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white">
+                        <button onClick={clearQuery} className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white">
                             <X size={20} />
                         </button>
                     )}
@@ -59,10 +48,11 @@ function SearchContent() {
 
             {/* CONTENIDO */}
             {query ? (
+                // --- VISTA DE RESULTADOS DE BÚSQUEDA ---
                 <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     {loading && !results && <div className="text-gray-400 text-center">Searching...</div>}
 
-                    {!loading && (!results?.tracks?.items.length && !results?.artists?.items.length) && (
+                    {!loading && (!results?.tracks?.items?.length && !results?.artists?.items?.length) && (
                         <div className="text-center text-white mt-10">
                             <p className="text-xl font-bold">No results found for "{query}"</p>
                         </div>
@@ -85,7 +75,7 @@ function SearchContent() {
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-4">Songs</h2>
                             <div className="flex flex-col">
-                                {results.tracks.items.map((track, index) => (
+                                {results.tracks.items.map((track: any, index: number) => (
                                     <SongCard
                                         key={track.id}
                                         index={index + 1}
@@ -105,18 +95,20 @@ function SearchContent() {
                     )}
                 </div>
             ) : (
-                // GÉNEROS
                 <div className="animate-in fade-in duration-500">
                     <h2 className="text-xl font-bold text-white mb-4">Explore all</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        <GenreCard title="Pop" color="bg-[#8D67AB]" />
-                        <GenreCard title="Rock" color="bg-[#E91429]" />
-                        <GenreCard title="Hip-Hop" color="bg-[#BA5D07]" />
-                        <GenreCard title="Latino" color="bg-[#E1118C]" />
-                        <GenreCard title="Indie" color="bg-[#608108]" />
-                        <GenreCard title="Relax" color="bg-[#477D95]" />
-                        <GenreCard title="Entrenamiento" color="bg-[#777777]" />
-                        <GenreCard title="Podcast" color="bg-[#27856A]" />
+                        {/* 5. Iteramos sobre categories, que ahora SÍ existe */}
+                        {categories.map((cat) => (
+                            <Link key={cat.id} href={`/dashboard/category/${cat.id}`}>
+                                <GenreCard
+                                    title={cat.name}
+                                    image={cat.icons[0]?.url}
+                                    // Pasamos una función vacía al onClick porque el Link maneja la navegación
+                                    onClick={() => {}} 
+                                />
+                            </Link>
+                        ))}
                     </div>
                 </div>
             )}
@@ -124,70 +116,10 @@ function SearchContent() {
     );
 }
 
-// --- 2. COMPONENTE WRAPPER (Necesario para evitar errores de Build) ---
 export default function SearchPage() {
     return (
         <Suspense fallback={<div className="text-white p-10">Loading...</div>}>
             <SearchContent />
         </Suspense>
     );
-}
-
-// --- SUB-COMPONENTES ---
-function ArtistCard({ artist }: { artist: any }) {
-    const imageUrl = artist.images?.[0]?.url;
-    return (
-        <Link href={`/dashboard/artist/${artist.id}`}>
-            <div className="relative p-4 rounded-lg overflow-hidden hover:bg-[#282828] transition-colors cursor-pointer group flex flex-col items-center h-full">
-
-                <div className="absolute inset-0 z-0">
-                    {imageUrl && (
-                        <Image
-                            src={imageUrl}
-                            alt="Background"
-                            fill
-                            className="object-cover blur opacity-40 scale-125 group-hover:opacity-90 transition-opacity duration-300"
-                        />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-black/40 to-transparent"></div>
-                </div>
-
-                <div className="relative z-10 flex flex-col items-center w-full">
-
-                    <div className="relative w-32 h-32 mb-4 ">
-                        {imageUrl ? (
-                            <Image
-                                src={imageUrl}
-                                alt={artist.name}
-                                fill
-                                className="object-cover rounded-full group-hover:scale-105 transition-transform duration-300 border-2 border-white/10"
-                            />
-                        ) : (
-                            <div className="w-full h-full bg-[#333] rounded-full flex items-center justify-center text-gray-500 font-bold text-2xl">
-                                {artist.name.charAt(0)}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="text-center w-full">
-                        <h3 className="text-white font-bold truncate w-full px-2 drop-shadow-md text-lg">
-                            {artist.name}
-                        </h3>
-                        <p className="text-gray-300 text-sm mt-1 drop-shadow-md font-medium">
-                            Artist
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </Link>
-    )
-}
-
-function GenreCard({ title, color }: { title: string, color: string }) {
-    return (
-        <div className={`${color} h-40 rounded-lg p-4 relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity`}>
-            <span className="font-bold text-xl text-white font-saira absolute top-4 left-4 max-w-[80%] z-10 break-words leading-tight">{title}</span>
-            <div className="absolute -bottom-2 -right-4 w-24 h-24 bg-black/20 rotate-[25deg] rounded-lg shadow-lg transform translate-x-2 translate-y-2"></div>
-        </div>
-    )
 }
