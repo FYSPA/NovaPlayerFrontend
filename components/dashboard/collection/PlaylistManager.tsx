@@ -1,91 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Plus, Library, Trash2, Pencil } from "lucide-react";
 import CreatePlaylistModal from "@/components/dashboard/collection/CreatePlaylistModal";
 import EditPlaylistModal from "@/components/dashboard/collection/EditPlaylistModal";
-import api from "@/utils/api";
 import useUser from "@/hooks/useUser";
+// Importamos tu nuevo hook
+import { useLibrary } from "@/hooks/useLibrary";
 
 interface PlaylistManagerProps {
     isCollapsed: boolean;
 }
 
 export default function PlaylistManager({ isCollapsed }: PlaylistManagerProps) {
-    // 1. ESTADOS
-    const [playlists, setPlaylists] = useState<any[]>([]);
+    // 1. Usamos la lógica del Hook (Limpio y elegante)
+    const { playlists, createPlaylist, deletePlaylist, editPlaylist } = useLibrary();
+    
+    // 2. Datos del usuario (Para verificar dueño)
+    const { user } = useUser();
 
-    // Estado para el Modal de Crear
+    // 3. ESTADOS LOCALES (¡ESTO ES LO QUE FALTABA!)
+    // Son necesarios para abrir/cerrar los modales y saber qué editar
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-    // Estados para el Modal de Editar (LOS QUE TE FALTABAN)
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [playlistToEdit, setPlaylistToEdit] = useState<any>(null);
 
-    // Usuario actual (para verificar si es dueño de la playlist)
-    const { user } = useUser();
+    // --- HANDLERS CONECTADOS AL HOOK ---
 
-    // 2. FUNCIÓN CARGAR PLAYLISTS
-    const fetchPlaylists = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        try {
-            const { data } = await api.get('/spotify/playlists', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setPlaylists(data);
-        } catch (error) {
-            console.error("Error cargando playlists", error);
-        }
-    };
-
-    // 3. EFECTOS (Carga inicial + Sincronización al enfocar)
-    useEffect(() => {
-        fetchPlaylists();
-
-        const onFocus = () => fetchPlaylists();
-        window.addEventListener("focus", onFocus);
-
-        return () => window.removeEventListener("focus", onFocus);
-    }, []);
-
-    // 4. MANEJADORES DE ACCIONES (Handlers)
-
-    // Crear
     const handleCreate = async (data: any) => {
-        const token = localStorage.getItem('token');
         try {
-            await api.post('/spotify/playlist', data, { headers: { Authorization: `Bearer ${token}` } });
-            fetchPlaylists();
-        } catch (error) {
-            console.error(error);
-            alert("Error al crear. Verifica tus permisos.");
-        }
+            await createPlaylist(data); 
+        } catch (e) { alert("Error al crear"); }
     };
 
-    // Borrar
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
-        if (!confirm("¿Seguro que quieres borrar esta playlist?")) return;
-
-        const token = localStorage.getItem('token');
+        if(!confirm("¿Borrar esta playlist?")) return;
         try {
-            // Actualización visual inmediata (Optimista)
-            setPlaylists(prev => prev.filter(p => p.id !== id));
+            await deletePlaylist(id); 
+        } catch(e) { alert("Error al borrar"); }
+    };
 
-            await api.delete(`/spotify/playlist/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-            fetchPlaylists(); // Recarga real
-        } catch (err) {
-            alert("No se pudo borrar");
-            fetchPlaylists(); // Revertir si falló
-        }
+    const handleEditConfirm = async (data: any) => {
+        if(!playlistToEdit) return;
+        try {
+            await editPlaylist(playlistToEdit.id, data);
+        } catch(e) { console.error(e); }
     };
 
     // Abrir Modal Editar
     const openEditModal = (e: React.MouseEvent, playlist: any) => {
         e.preventDefault();
-        e.stopPropagation(); // Evita que el clic abra la playlist
+        e.stopPropagation(); 
         setPlaylistToEdit({
             id: playlist.id,
             name: playlist.name,
@@ -94,16 +61,6 @@ export default function PlaylistManager({ isCollapsed }: PlaylistManagerProps) {
         });
         setIsEditOpen(true);
     }
-
-    // Confirmar Edición
-    const handleEditConfirm = async (data: any) => {
-        if (!playlistToEdit) return;
-        const token = localStorage.getItem('token');
-        try {
-            await api.put(`/spotify/playlist/${playlistToEdit.id}`, data, { headers: { Authorization: `Bearer ${token}` } });
-            fetchPlaylists();
-        } catch (err) { console.error(err); }
-    };
 
     return (
         <>
@@ -191,7 +148,7 @@ export default function PlaylistManager({ isCollapsed }: PlaylistManagerProps) {
     );
 }
 
-// --- COMPONENTE VISUAL PLAYLIST ITEM ---
+// --- COMPONENTE VISUAL ---
 function PlaylistItem({ label, image, author, isCollapsed }: any) {
     return (
         <li className={`flex items-center transition-colors rounded-md ${isCollapsed ? "justify-center py-2" : "px-2 py-2 hover:bg-[#1A1A1A]"}`}>

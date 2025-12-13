@@ -6,34 +6,14 @@ import PlaylistCard from "@/components/dashboard/collection/PlaylistCard";
 import SongCard from "@/components/dashboard/collection/SongCard";
 import api from "@/utils/api";
 import { usePlayer } from "@/context/PlayerContext";
+import { useAlbum } from "@/hooks/useAlbum";
 
 export default function AlbumPage() {
     const params = useParams();
     const albumId = params.id as string;
 
-    const [album, setAlbum] = useState<any | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { album, loading } = useAlbum(albumId);
     const { playSong } = usePlayer();
-
-    useEffect(() => {
-        const fetchAlbum = async () => {
-            const token = localStorage.getItem('token');
-            if (!token || !albumId) return;
-
-            try {
-                const { data } = await api.get(`/spotify/album/${albumId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setAlbum(data);
-            } catch (error) {
-                console.error("Error", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchAlbum();
-    }, [albumId]);
 
     // Función para reproducir el álbum
     const handlePlayTrack = (trackUri: string) => {

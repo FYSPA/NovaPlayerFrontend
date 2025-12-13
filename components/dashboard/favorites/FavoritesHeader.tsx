@@ -7,101 +7,47 @@ import Image from "next/image";
 import useUser from "@/hooks/useUser";
 import { usePlayer } from "@/context/PlayerContext";
 import { useRouter } from "next/navigation";
+import { useFavorites } from "@/hooks/useFavorites";
 
 export default function FavoritesPage() {
-    const [tracks, setTracks] = useState<any[]>([]);
-    const [hasMore, setHasMore] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
+    const { tracks, hasMore, isLoading, loadMore } = useFavorites();
+    
+    const { user } = useUser();
+    const { playSong } = usePlayer();
 
+    // Refs para el scroll infinito (Esto se queda en la UI porque es del DOM)
     const observerRef = useRef<IntersectionObserver | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-    const { user } = useUser();
-    const router = useRouter();
-    const { playSong } = usePlayer(); 
-
     const handlePlayTrack = (startIndex: number) => {
         const queue = tracks.slice(startIndex).map(item => item.track.uri);
-        playSong(queue); // Enviamos el array
+        playSong(queue);
     };
 
-    const fetchTracks = async (offset: number) => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        try {
-            setIsLoading(true);
-            const { data } = await api.get(`/spotify/saved-tracks?offset=${offset}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            // --- PROTECCIÓN DE DATOS (BLINDAJE) ---
-            // Verificamos que 'data.items' exista y sea un Array antes de intentar leerlo.
-            if (data && data.items && Array.isArray(data.items)) {
-                
-                if (data.items.length > 0) {
-                    setTracks((prev) => {
-                        const newTracks = [...prev, ...data.items];
-                        // Filtramos duplicados por ID para evitar errores de claves en React
-                        return Array.from(new Map(newTracks.map(item => [item.track.id, item])).values());
-                    });
-                }
-
-                // Si devuelve menos de 50, llegamos al final
-                if (data.items.length < 50) {
-                    setHasMore(false);
-                }
-
-            } else {
-                // Si la respuesta no tiene el formato esperado, detenemos la paginación para evitar bucles
-                console.warn("Respuesta inesperada de API Favoritos:", data);
-                setHasMore(false);
-            }
-
-        } catch (error: any) {
-            console.error("Error cargando favoritos", error);
-
-            // CORRECCIÓN ERROR 401
-            if (error.response && error.response.status === 401) {
-                console.error("Token vencido, redirigiendo...");
-                localStorage.removeItem("token");
-                router.push("/");
-            }
-        } finally {
-            setIsLoading(false);
-        }
+    const handlePlayAll = () => {
+        if (tracks.length === 0) return;
+        handlePlayTrack(0);
     };
 
-    useEffect(() => {
-        fetchTracks(0);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
+    // Observer simplificado (solo llama a loadMore)
     useEffect(() => {
         const currentElement = loadMoreRef.current;
         if (isLoading || !hasMore) return;
+        
         if (observerRef.current) observerRef.current.disconnect();
 
         observerRef.current = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
-                fetchTracks(tracks.length);
+                loadMore(); // <--- Llamamos a la función del hook
             }
         }, { threshold: 0.5 });
 
         if (currentElement) observerRef.current.observe(currentElement);
         return () => { if (observerRef.current) observerRef.current.disconnect(); };
-    }, [tracks.length, isLoading, hasMore]);
-
-    // --- PLAY GLOBAL (Botón Verde) ---
-    const handlePlayAll = () => {
-        if (tracks.length === 0) return;
-        const firstTrack = tracks[0].track;
-        // Creamos la cola con las primeras 50 canciones para no saturar la petición
-        const queue = tracks.slice(0, 50).map(t => t.track.uri);
-        handlePlayTrack(0);
-    };
+    }, [tracks.length, isLoading, hasMore, loadMore]);
 
     if (!user) return null;
+
 
     return (
         <div className="flex flex-col pb-20 text-white font-saira">

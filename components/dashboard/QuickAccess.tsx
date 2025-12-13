@@ -5,50 +5,18 @@ import Link from "next/link";
 import { Play } from "lucide-react";
 import api from "@/utils/api";
 import { usePlayer } from "@/context/PlayerContext";
+import { useRecentHistory } from "@/hooks/useRecentHistory";
 
 export default function QuickAccess() {
-    const [items, setItems] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    
+    const { items, loading } = useRecentHistory();
     const { playSong } = usePlayer();
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-
-            try {
-                const { data } = await api.get('/spotify/recently-played', { 
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
-                if (Array.isArray(data)) {
-                    setItems(data);
-                }
-            } catch (error) {
-                console.error("Error cargando Quick Access:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
-
-    // --- FUNCIÓN CORREGIDA Y ROBUSTA ---
+    // ... (La función handlePlayItem se queda aquí porque es interacción UI) ...
     const handlePlayItem = (item: any) => {
         if (!item.uri) return;
-        console.log("QuickAccess Click:", item.type, item.uri); 
-        console.log("Reproduciendo desde QuickAccess:", item.type, item.uri);
-
-        // 1. Si es una CANCIÓN, se envía como lista (array)
-        if (item.uri.includes(":track:") || item.type === 'track') {
-            playSong([item.uri]); 
-        } 
-        // 2. Si es ALBUM o PLAYLIST, se envía como contexto
-        else {
-            playSong([], item.uri); 
-        }
+        const isTrack = item.uri.includes(":track:");
+        if (isTrack) playSong([item.uri]); 
+        else playSong([], item.uri); 
     };
 
     return (

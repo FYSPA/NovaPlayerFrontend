@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { usePlayer } from "@/context/PlayerContext";
+import { useSearch } from "@/hooks/useSearch";
 
 // --- TIPOS ---
 interface SearchResults {
@@ -16,58 +17,21 @@ interface SearchResults {
 
 // --- 1. LÓGICA PRINCIPAL (Donde ocurre la magia) ---
 function SearchContent() {
-    const { playSong } = usePlayer();
     const searchParams = useSearchParams();
-    const queryFromUrl = searchParams.get("q");
+    const queryFromUrl = searchParams.get("q") || "";
 
-    // Inicializamos con lo que venga en la URL
-    const [query, setQuery] = useState(queryFromUrl || "");
-    const [results, setResults] = useState<SearchResults | null>(null);
-    const [loading, setLoading] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
+    // 2. USAMOS EL HOOK (Mira qué corto queda)
+    const { query, setQuery, results, loading } = useSearch(queryFromUrl);
+    
+    const { playSong } = usePlayer();
 
-    const handlePlayTrack = (uri: string) => {
-        // En búsqueda, mandamos la canción como una lista de 1 elemento
-        playSong([uri]); 
-    };
-
-    // Efecto: Si cambia la URL (por el Header), actualizamos el input
+    // Sincronizar URL con estado si cambia desde el Header
     useEffect(() => {
-        if (queryFromUrl) {
-            setQuery(queryFromUrl);
-        }
+        if(queryFromUrl !== query) setQuery(queryFromUrl);
     }, [queryFromUrl]);
 
-    // Efecto: Buscador con Debounce
-    useEffect(() => {
-        if (!query.trim()) {
-            setResults(null);
-            setLoading(false);
-            return;
-        }
-        const timeoutId = setTimeout(() => fetchResults(query), 500);
-        return () => clearTimeout(timeoutId);
-    }, [query]);
-
-    const fetchResults = async (searchTerm: string) => {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-        abortControllerRef.current = new AbortController();
-
-        try {
-            const { data } = await api.get(`/spotify/search?q=${encodeURIComponent(searchTerm)}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: abortControllerRef.current.signal
-            });
-            setResults(data);
-        } catch (error: any) {
-            if (error.name !== "CanceledError") console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Función simple de play
+    const handlePlayTrack = (uri: string) => playSong([uri]);
 
     return (
         <div className="flex flex-col gap-8 pb-20 px-4 md:px-8 font-saira bg-transparent">

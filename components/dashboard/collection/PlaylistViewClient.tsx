@@ -6,6 +6,7 @@ import SongCard from "@/components/dashboard/collection/SongCard";
 import api from "@/utils/api";
 import useUser from "@/hooks/useUser"
 import { usePlayer } from "@/context/PlayerContext";
+import { usePlaylist } from "@/hooks/usePlaylist";
 
 
 interface PlaylistViewClientProps {
@@ -13,34 +14,14 @@ interface PlaylistViewClientProps {
 }
 
 export default function PlaylistViewClient({ playlistId }: PlaylistViewClientProps) {
-    const [playlistData, setPlaylistData] = useState<any | null>(null);
-    const [loading, setLoading] = useState(true);
-    const { user, loading: userLoading } = useUser();
-    const { playSong } = usePlayer(); // <--- 2. Obtener función
+    const { playlistData, loading } = usePlaylist(playlistId);
+    
+    const { user } = useUser();
+    const { playSong } = usePlayer();
 
     const handlePlayTrack = (trackUri: string) => {
        playSong([trackUri], `spotify:playlist:${playlistId}`);
     };
-
-    useEffect(() => {
-        const fetchDetails = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            try {
-                const { data } = await api.get(`/spotify/playlist/${playlistId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setPlaylistData(data);
-            } catch (error) {
-                console.error("Error", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchDetails();
-    }, [playlistId]);
 
     if (loading) return <div className="text-white p-10">Cargando...</div>;
     if (!playlistData) return <div className="text-white p-10">No encontrada</div>;
@@ -51,6 +32,7 @@ export default function PlaylistViewClient({ playlistId }: PlaylistViewClientPro
     } else {
         ownerImage = playlistData.owner.images?.[0]?.url;
     }
+    
 
     // --- CONTEXT URI PARA PLAYLIST ---
     const contextUri = `spotify:playlist:${playlistData.id}`;
