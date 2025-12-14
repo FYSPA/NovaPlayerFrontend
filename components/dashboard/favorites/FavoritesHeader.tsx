@@ -20,8 +20,12 @@ export default function FavoritesPage() {
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
     const handlePlayTrack = (startIndex: number) => {
-        const queue = tracks.slice(startIndex).map(item => item.track.uri);
-        playSong(queue);
+        const rawQueue = tracks.slice(startIndex, startIndex + 50);
+        const queue = rawQueue.map(item => item.track.uri);
+        if (queue.length <= 1) {
+            console.error("⚠️ ALERTA: La lista de 'tracks' parece vacía o el índice está mal.", tracks);
+        }
+        playSong(queue); 
     };
 
     const handlePlayAll = () => {

@@ -1,7 +1,8 @@
 import axios from 'axios';
-
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
 const api = axios.create({
-  baseURL: 'http://localhost:9000', // Tu URL del backend
+  baseURL: BASE_URL, // Tu URL del backend
+  withCredentials: true, // Para enviar cookies si es necesario
 });
 
 // Variable para evitar bucles infinitos de renovación
@@ -23,7 +24,6 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log("🔄 Token vencido. Intentando renovar...");
         
         // 1. Llamamos al endpoint de renovación usando el token de NESTJS (que dura más)
         const appToken = localStorage.getItem("token"); // Tu JWT de la app
@@ -32,8 +32,6 @@ api.interceptors.response.use(
         await axios.post('http://localhost:9000/auth/refresh-spotify', {}, {
             headers: { Authorization: `Bearer ${appToken}` }
         });
-
-        console.log("✅ Token renovado. Reintentando petición...");
         isRefreshing = false;
 
         // 2. Reintentamos la petición original que había fallado

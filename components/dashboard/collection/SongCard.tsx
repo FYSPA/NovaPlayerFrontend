@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePlayer } from "@/context/PlayerContext";
 import LikeButton from "@/components/dashboard/collection/LikedButton";
-import { Play } from "lucide-react";
 
 interface SongCardProps {
     index: number;
@@ -13,14 +12,15 @@ interface SongCardProps {
     artistName: string;
     artistId: string;
     uri: string;
-    onPlay: () => void;
-    trackId: string
-    contextUri?: string; // Para playlists
-    queue?: string[];    // Para favoritos/búsqueda
+    trackId: string;
+    onPlay?: () => void; // <--- Hacemos que sea opcional por si acaso
+    contextUri?: string;
+    queue?: string[];
 }
 
 export default function SongCard({ 
     index, image, name, album, duration, artistName, artistId, uri, trackId,
+    onPlay, // <--- Recibimos la función del padre
     contextUri, 
     queue 
 }: SongCardProps) {
@@ -28,24 +28,23 @@ export default function SongCard({
     const { playSong, currentTrack } = usePlayer();
     const isCurrentTrack = currentTrack?.id === trackId;
     
-    const formatTime = (ms: number) => {
-        const minutes = Math.floor(ms / 60000);
-        const seconds = ((ms % 60000) / 1000).toFixed(0);
-        return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
-    };
-
     // Función auxiliar para manejar el play con todas las variables
     const handlePlay = () => {
+        // 1. PRIORIDAD MÁXIMA: Si el padre nos dio una orden (onPlay), la ejecutamos.
+        // Esto es lo que usa FavoritesPage para mandar la lista de 50 canciones.
+        if (onPlay) {
+            console.log("Delegando reproducción al padre...");
+            onPlay();
+            return;
+        }
+
+        // 2. Si no hay onPlay, usamos la lógica interna
         if (contextUri) {
-            // CASO 1: Playlist o Álbum (Contexto)
-            // Enviamos [uri] como array para el offset, y el contextUri
             playSong([uri], contextUri);
         } else if (queue && queue.length > 0) {
-            // CASO 2: Favoritos o Artista (Lista sin contexto)
-            // Enviamos la cola calculada por el padre
             playSong(queue); 
         } else {
-            // CASO 3: Canción suelta
+            // Caso de emergencia: Solo esta canción
             playSong([uri]);
         }
     };
@@ -57,17 +56,18 @@ export default function SongCard({
             onDoubleClick={handlePlay} 
             className="group flex w-full items-center justify-between px-4 py-2 hover:bg-white/10 rounded-md transition-colors cursor-pointer"
         >
-
             {/* IZQUIERDA */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div
                     className="w-6 text-center"
                     onClick={(e) => {
-                        e.stopPropagation(); // Evita conflictos
-                        handlePlay();
+                        e.stopPropagation();
+                        handlePlay(); // <--- Ahora esto llamará a onPlay si existe
                     }} 
                 >
-                    <span className="text-gray-400 group-hover:hidden">{index}</span>
+                    <span className={`text-gray-400 ${isCurrentTrack ? "text-green-500" : ""} group-hover:hidden`}>
+                        {isCurrentTrack ? "▶" : index}
+                    </span>
                     <span className="hidden group-hover:block text-white">▶</span>
                 </div>
 
@@ -82,7 +82,7 @@ export default function SongCard({
                     />
                 </div>
                 <div className="flex flex-col min-w-0">
-                    <h1 className={`text-base font-semibold truncate pr-4 ${isCurrentTrack ? "text-green-500 animate-pulse" : "text-white"}`}>
+                    <h1 className={`text-base font-semibold truncate pr-4 ${isCurrentTrack ? "text-green-500" : "text-white"}`}>
                         {name}
                     </h1>
 

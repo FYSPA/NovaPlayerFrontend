@@ -13,9 +13,7 @@ function CallbackHandler() {
             // 1. Guardar token
             localStorage.setItem('token', token);
 
-            // 2. (Opcional) Pedir datos del usuario con ese token para guardar nombre, etc.
-            // await api.get('/users/me')...
-
+        
             // 3. Redirigir al Home
             router.push('/dashboard');
         } else {

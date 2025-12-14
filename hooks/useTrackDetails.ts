@@ -24,42 +24,60 @@ export function useNowPlaying() {
         lastTrackId.current = trackIdentifier;
         setIframeLoaded(false);
         setShowVideo(true);
+        setVideoId(null);
+        setArtistInfo(null);
+        setIsFollowing(false);
+        setIframeLoaded(false);
+        setShowVideo(true);
 
-        const fetchData = async () => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
+        const timerId = setTimeout(() => {
+            
+            const fetchData = async () => {
+                const token = localStorage.getItem("token");
+                if (!token) return;
 
-            if (abortController.current) abortController.current.abort();
-            abortController.current = new AbortController();
+                if (abortController.current) abortController.current.abort();
+                abortController.current = new AbortController();
 
-            const artistName = currentTrack.artists[0].name;
-            const trackName = currentTrack.name;
-            const artistId = currentTrack.artists[0].id || (currentTrack.artists[0] as any).uri?.split(':')[2];
+                const artistName = currentTrack.artists[0].name;
+                const trackName = currentTrack.name;
+                const artistId = currentTrack.artists[0].id || (currentTrack.artists[0] as any).uri?.split(':')[2];
 
-            try {
-                const query = `${trackName} ${artistName} official video`;
-                const { data } = await api.get(`/spotify/video?q=${encodeURIComponent(query)}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    signal: abortController.current.signal
-                });
+                try {
+                    // A. Buscar Video
+                    const query = `${trackName} ${artistName} official video`;
+                    const { data } = await api.get(`/spotify/video?q=${encodeURIComponent(query)}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                        signal: abortController.current.signal
+                    });
 
-                if (data?.videoId) setVideoId(data.videoId);
-                else setVideoId(null);
+                    if (data?.videoId) setVideoId(data.videoId);
 
-                if (artistId) {
-                    const [infoRes, followRes] = await Promise.all([
-                        api.get(`/spotify/artist/${artistId}`, { headers: { Authorization: `Bearer ${token}` } }),
-                        api.get(`/spotify/artist/${artistId}/is-following`, { headers: { Authorization: `Bearer ${token}` } })
-                    ]);
-                    setArtistInfo(infoRes.data);
-                    setIsFollowing(followRes.data);
+                    // B. Info del Artista y Follow (ESTO ES LO QUE DABA EL ERROR 429)
+                    if (artistId) {
+                        const [infoRes, followRes] = await Promise.all([
+                            api.get(`/spotify/artist/${artistId}`, { headers: { Authorization: `Bearer ${token}` } }),
+                            api.get(`/spotify/artist/${artistId}/is-following`, { headers: { Authorization: `Bearer ${token}` } })
+                        ]);
+                        setArtistInfo(infoRes.data);
+                        setIsFollowing(followRes.data);
+                    }
+                } catch (error: any) {
+                    if (error.name !== "CanceledError") console.error("Error sidebar", error);
                 }
-            } catch (error: any) {
-                if (error.name !== "CanceledError") console.error("Error sidebar", error);
-            }
-        };
-        fetchData();
-    }, [currentTrack?.id, currentTrack?.name, currentTrack?.uri]);
+            };
+
+            fetchData();
+
+        }, 2000); // <--- TIEMPO DE ESPERA (2000ms = 2 segundos)
+
+            // 3. CLEANUP: Si el usuario cambia de canción, cancelamos el timer anterior
+            return () => {
+                clearTimeout(timerId);
+                if (abortController.current) abortController.current.abort();
+            };
+
+        }, [currentTrack?.id, currentTrack?.name, currentTrack?.uri]);
 
     const handleFollow = async () => {
         const token = localStorage.getItem("token");

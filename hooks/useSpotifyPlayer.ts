@@ -13,24 +13,27 @@ export function useSpotifyPlayer() {
     const [player, setPlayer] = useState<any>(null);
     const [deviceId, setDeviceId] = useState<string | null>(null);
     const [isPaused, setIsPaused] = useState(false);
-    const [isActive, setIsActive] = useState(false);
+    const [isActive, setIsActive] = useState(false); // Indica si el SDK web está controlando la música
     const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isSaved, setIsSaved] = useState(false);
     const [volume, setVolume] = useState(50);
+    let localDeviceId = "";
     
+    // Refs para evitar re-renderizados y manejar temporizadores
     const lastUserAction = useRef<number>(0);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null); // <--- NUEVO: Para el seek
 
-    // --- 1. Volumen ---
+    // --- 1. Volumen (Con Debounce 500ms) ---
     const changeVolume = (percent: number) => {
         const newVolume = Math.max(0, Math.min(100, percent));
-        setVolume(newVolume);
+        setVolume(newVolume); // Actualización visual inmediata
 
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
 
-        timeoutRef.current = setTimeout(async () => {
+        volumeTimeoutRef.current = setTimeout(async () => {
             if (!deviceId) return;
             const token = localStorage.getItem("token");
             try {
@@ -38,27 +41,42 @@ export function useSpotifyPlayer() {
                     { volumePercent: Math.round(newVolume), deviceId },
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
-            } catch (error) { console.error(error); }
-        }, 300);
+            } catch (error) { console.error("Error volumen", error); }
+        }, 500); // <--- AUMENTADO A 500ms
     };
 
-    // --- 2. Seek ---
-    const seek = async (ms: number) => {
+    // --- 2. Seek (AHORA CON DEBOUNCE - CRÍTICO PARA EVITAR 429) ---
+    const seek = (ms: number) => {
         if (!deviceId) return;
-        const token = localStorage.getItem("token");
-        setPosition(ms);
-        try {
-            await api.put('/spotify/seek',
-                { positionMs: ms, deviceId },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-        } catch (error) { console.error(error); }
+        setPosition(ms); // Actualización visual inmediata (UI optimista)
+        
+        // Cancelamos la petición anterior si el usuario sigue arrastrando
+        if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+
+        // Esperamos 500ms a que el usuario deje de mover la barra
+        seekTimeoutRef.current = setTimeout(async () => {
+            const token = localStorage.getItem("token");
+            try {
+                await api.put('/spotify/seek',
+                    { positionMs: ms, deviceId },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } catch (error) { console.error("Error seek", error); }
+        }, 500);
     };
 
-    // --- 3. Sincronización (Polling) ---
+    // --- 3. Sincronización (Polling Inteligente) ---
     const syncState = useCallback(async () => {
+        // A. Si la pestaña está oculta, no gastamos recursos
         if (typeof document !== "undefined" && document.hidden) return;
+        
+        // B. Si el usuario acaba de tocar algo, esperamos
         if (Date.now() - lastUserAction.current < 2000) return;
+
+        // C. OPTIMIZACIÓN: Si el SDK Web está activo (sonando en este navegador),
+        // CONFIAMOS en los eventos del SDK y NO llamamos a la API.
+        // Solo llamamos a la API si estamos controlando otro dispositivo (celular, etc).
+        if (isActive) return; 
         
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -69,15 +87,22 @@ export function useSpotifyPlayer() {
             });
 
             if (data && data.item) {
-                setCurrentTrack(data.item);
+                // Solo actualizamos si realmente cambió algo para evitar re-renders
+                if (currentTrack?.id !== data.item.id) setCurrentTrack(data.item);
                 setIsPaused(!data.is_playing);
-                if (data.progress_ms) setPosition(data.progress_ms);
+                
+                // Sincronizamos tiempo solo si la diferencia es grande (>2s) para evitar saltos visuales
+                if (Math.abs(position - data.progress_ms) > 2000) {
+                    setPosition(data.progress_ms);
+                }
+                
                 if (data.item.duration_ms) setDuration(data.item.duration_ms);
             }
         } catch (error) { }
-    }, []);
+    }, [isActive, currentTrack?.id, position]); // Agregamos dependencias
 
     // --- 4. Check Saved Status ---
+    // Esto está bien, solo se ejecuta al cambiar de canción
     useEffect(() => {
         if (!currentTrack || !currentTrack.id) return;
         const checkSavedStatus = async () => {
@@ -110,10 +135,12 @@ export function useSpotifyPlayer() {
     // --- 5. Intervalos ---
     useEffect(() => {
         syncState();
-        const interval = setInterval(syncState, 5000);
+        // Aumentamos a 6 segundos para ser más amables con la API
+        const interval = setInterval(syncState, 6000); 
         return () => clearInterval(interval);
     }, [syncState]);
 
+    // Intervalo local para mover la barra de progreso suavemente (sin API)
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (!isPaused) {
@@ -127,7 +154,12 @@ export function useSpotifyPlayer() {
         return () => clearInterval(interval);
     }, [isPaused, duration]);
 
-    // --- 6. Inicializar SDK ---
+    useEffect(() => {
+        setPosition(0);
+        // Opcional: También podrías poner setDuration(0) si quieres que se limpie el total
+    }, [currentTrack?.id]); 
+
+    // --- 6. Inicializar SDK (Esto maneja el estado local sin API) ---
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -159,22 +191,57 @@ export function useSpotifyPlayer() {
 
             player.addListener('ready', ({ device_id }: any) => {
                 setDeviceId(device_id);
+                localDeviceId = device_id;
             });
 
-            player.addListener('player_state_changed', (state: any) => {
-                if (!state) return;
+            // EVENTOS DEL SDK: Actualizan el estado GRATIS (sin llamar a tu backend)
+            player.addListener('player_state_changed', async (state: any) => {
+                if (!state) {
+                    setIsActive(false);
+                    return;
+                }
+                
+                setIsActive(true); 
                 setCurrentTrack(state.track_window.current_track);
                 setIsPaused(state.paused);
-                setPosition(state.position);
+                
+                // Sincronización visual suave
+                if (Math.abs(state.position - position) > 2000) {
+                     setPosition(state.position);
+                }
                 setDuration(state.duration);
-                player.getCurrentState().then((state: any) => { setIsActive(!!state); });
+
+                // --- LÓGICA DE AUTO-NEXT CORREGIDA ---
+                // Si está pausado + posición 0 + no cargando + ya sonó algo antes
+                if (
+                    state.paused && 
+                    state.position === 0 && 
+                    !state.loading && 
+                    state.track_window.previous_tracks.length > 0
+                ) {
+                    // 1. Revisamos si Spotify tiene algo en la cola siguiente
+                    if (state.track_window.next_tracks.length > 0) {
+                        console.log("⚠️ Canción terminada. Forzando siguiente...");
+                        
+                        // FORZAMOS EL SALTO
+                        try {
+                            // Usamos el ID local que guardamos al principio
+                            await api.post('/spotify/next', { deviceId: localDeviceId });
+                        } catch (e) {
+                            console.error("Error forzando next:", e);
+                        }
+                    } else {
+                        console.log("✅ Fin de la playlist. No hay más canciones.");
+                    }
+                }
             });
+
 
             player.connect();
         };
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // --- 7. Controles ---
+    // --- 7. Controles (Actualizan lastUserAction para pausar polling) ---
     const transferPlayback = async (id: string) => {
         const token = localStorage.getItem("token");
         try {
@@ -183,65 +250,70 @@ export function useSpotifyPlayer() {
     };
 
     const togglePlay = async () => {
-        if (!deviceId) return;
+        if (!deviceId) {
+            console.log("El player no está listo aún.");
+            return
+        };
         const token = localStorage.getItem("token");
-        lastUserAction.current = Date.now();
+        lastUserAction.current = Date.now(); // Pausamos polling
 
-        if (!isPaused) {
-            setIsPaused(true);
-            try {
-                await api.put('/spotify/pause', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
-            } catch (error) { setIsPaused(false); }
-            return;
-        }
+        // Lógica optimista
+        const newPausedState = !isPaused;
+        setIsPaused(newPausedState);
 
-        setIsPaused(false);
         try {
-            if (isActive) {
-                await api.put('/spotify/resume', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
-            } else {
-                await api.put('/spotify/transfer', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
-                setIsActive(true);
+            if (!newPausedState) { // Si vamos a reproducir
+                 if (isActive) {
+                    await api.put('/spotify/resume', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
+                } else {
+                    await api.put('/spotify/transfer', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
+                    setIsActive(true);
+                }
+            } else { // Si vamos a pausar
+                await api.put('/spotify/pause', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
             }
-        } catch (error) { setIsPaused(true); }
+        } catch (error) {
+            setIsPaused(!newPausedState); // Revertir en error
+        }
     };
 
     const nextTrack = async () => {
         if (!deviceId) return;
         const token = localStorage.getItem("token");
+        lastUserAction.current = Date.now();
         setPosition(0);
         await api.post('/spotify/next', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
-        setTimeout(syncState, 500);
     };
 
     const prevTrack = async () => {
         if (!deviceId) return;
         const token = localStorage.getItem("token");
+        lastUserAction.current = Date.now();
         setPosition(0);
         await api.post('/spotify/previous', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
-        setTimeout(syncState, 500);
     };
 
     const playSong = async (uris: string[], contextUri?: string) => {
-        if (!deviceId) {
-            console.error("⚠️ Player no listo");
-            return;
-        }
+        if (!deviceId) return;
+        
         const token = localStorage.getItem("token");
-        lastUserAction.current = Date.now();
-
-        const body = { deviceId, uris, contextUri };
-
+        setPosition(0);
+        // 1. PRIMERO: Activamos el dispositivo (Transfer Playback)
+        // Esto le dice a Spotify "Oye, este navegador es el que manda ahora"
         try {
-            await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
-        } catch (error) {
-            await transferPlayback(deviceId);
-            setTimeout(async () => {
-                try {
-                    await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
-                } catch (e) { }
-            }, 1000);
-        }
+            await api.put('/spotify/transfer', { deviceId }, { headers: { Authorization: `Bearer ${token}` } });
+        } catch (e) { console.warn("Transfer warning:", e); }
+
+        // 2. SEGUNDO: Esperamos 300ms y mandamos el Play
+        setTimeout(async () => {
+            try {
+                const body = { deviceId, uris, contextUri };
+                await api.put('/spotify/play', body, { headers: { Authorization: `Bearer ${token}` } });
+                setIsPaused(false);
+            } catch (error: any) {
+                console.error("❌ Error Play:", error.response?.data || error.message);
+            }
+        }, 300);
     };
 
     return {
