@@ -9,7 +9,7 @@ export default function MobileNav() {
     const links = [
         { href: "/dashboard", icon: Home, label: "Home" },
         { href: "/dashboard/search", icon: Search, label: "Search" },
-        { href: "/dashboard/collection", icon: Library, label: "Library" },
+        { href: "/dashboard/library", icon: Library, label: "Library" },
         { href: "/dashboard/favorites", icon: Heart, label: "Likes" },
     ];
 

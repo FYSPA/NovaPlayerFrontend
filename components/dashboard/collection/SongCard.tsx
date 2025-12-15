@@ -33,7 +33,6 @@ export default function SongCard({
         // 1. PRIORIDAD MÁXIMA: Si el padre nos dio una orden (onPlay), la ejecutamos.
         // Esto es lo que usa FavoritesPage para mandar la lista de 50 canciones.
         if (onPlay) {
-            console.log("Delegando reproducción al padre...");
             onPlay();
             return;
         }

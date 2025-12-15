@@ -1,54 +1,85 @@
 import axios from 'axios';
-console.log("--- DEBUG EN VERCEL ---");
-console.log("Valor recibido:", process.env.NEXT_PUBLIC_API_URL);
-console.log("-----------------------");
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
+
 const api = axios.create({
-  baseURL: BASE_URL, // Tu URL del backend
-  withCredentials: true, // Para enviar cookies si es necesario
+  baseURL: BASE_URL, 
+  withCredentials: true,
 });
 
-// Variable para evitar bucles infinitos de renovación
-let isRefreshing = false;
+// 1. INTERCEPTOR DE SOLICITUD (Para inyectar el token siempre)
+api.interceptors.request.use((config) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
 
+// --- LÓGICA DEL SEMÁFORO ---
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+// 2. INTERCEPTOR DE RESPUESTA (Manejo de errores)
 api.interceptors.response.use(
-  (response) => response, // Si todo sale bien, pasa directo
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Si el error es 401 (Unauthorized) y NO es un intento de renovación que ya falló
+    // Si es error 401 y no hemos reintentado ya esta petición
     if (error.response?.status === 401 && !originalRequest._retry) {
       
+      // CASO A: Ya hay alguien renovando. ¡A LA FILA!
       if (isRefreshing) {
-        return Promise.reject(error); // Si ya estamos renovando, no spamear
+        return new Promise(function(resolve, reject) {
+            failedQueue.push({ resolve, reject });
+        }).then(() => {
+            // Cuando se resuelva la promesa, reintentamos la petición original
+            return api(originalRequest);
+        }).catch(err => {
+            return Promise.reject(err);
+        });
       }
 
-      originalRequest._retry = true; // Marcamos para no entrar en bucle
+      // CASO B: Soy el primero. INICIO LA RENOVACIÓN.
+      originalRequest._retry = true;
       isRefreshing = true;
 
       try {
+        const appToken = localStorage.getItem("token");
         
-        // 1. Llamamos al endpoint de renovación usando el token de NESTJS (que dura más)
-        const appToken = localStorage.getItem("token"); // Tu JWT de la app
-        
-        // Usamos una instancia nueva de axios para no pasar por el interceptor otra vez
+        // Llamada de renovación (usamos axios puro para evitar bucles)
         await axios.post(`${BASE_URL}/auth/refresh-spotify`, {}, {
             headers: { Authorization: `Bearer ${appToken}` }
         });
-        isRefreshing = false;
 
-        // 2. Reintentamos la petición original que había fallado
-        // Como el token de Spotify se lee del Backend en cada petición, 
-        // simplemente reenviar la petición funcionará porque la BD ya tiene el nuevo.
+        // ¡Éxito! Liberamos el semáforo y procesamos la fila
+        isRefreshing = false;
+        processQueue(null, 'success');
+
+        // Reintentamos la petición original
         return api(originalRequest);
 
       } catch (refreshError) {
-        console.error("❌ No se pudo renovar. Cerrando sesión.", refreshError);
+        // Falló todo. Rechazamos a todos en la fila y cerramos sesión.
+        processQueue(refreshError, null);
         isRefreshing = false;
         
-        // Si falla la renovación, ahí sí cerramos sesión
+        console.error("❌ Sesión caducada. Redirigiendo...", refreshError);
         localStorage.removeItem("token");
         window.location.href = "/login";
+        
         return Promise.reject(refreshError);
       }
     }
