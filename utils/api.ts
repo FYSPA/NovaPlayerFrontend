@@ -1,4 +1,7 @@
 import axios from 'axios';
+console.log("--- DEBUG EN VERCEL ---");
+console.log("Valor recibido:", process.env.NEXT_PUBLIC_API_URL);
+console.log("-----------------------");
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
 const api = axios.create({
   baseURL: BASE_URL, // Tu URL del backend
