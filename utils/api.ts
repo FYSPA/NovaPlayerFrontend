@@ -32,7 +32,7 @@ api.interceptors.response.use(
         const appToken = localStorage.getItem("token"); // Tu JWT de la app
         
         // Usamos una instancia nueva de axios para no pasar por el interceptor otra vez
-        await axios.post('http://localhost:9000/auth/refresh-spotify', {}, {
+        await axios.post(`${BASE_URL}/auth/refresh-spotify`, {}, {
             headers: { Authorization: `Bearer ${appToken}` }
         });
         isRefreshing = false;
