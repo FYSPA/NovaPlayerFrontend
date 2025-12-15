@@ -95,7 +95,7 @@ export default function Login() {
 
                         <span>It's only available now on Spotify</span>
                         <a
-                            href={`${apiUrl}/auth/spotify`} 
+                            href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000'}/auth/spotify`}
                             className="bg-black text-white p-2 rounded-lg hover:bg-gray-900 transition flex justify-center items-center gap-2 mt-4 w-full border border-white/20 lg:border-transparent cursor-pointer relative z-50"
                         >
                             <BsSpotify size={25} className="text-green-500" /> 
