@@ -30,10 +30,10 @@ export default function Footer() {
                         <span className="text-xl font-bold mb-4 block">Links</span>
                         <ul className="space-y-2 text-gray-600">
                             <li className="hover:text-purple-600 transition-colors"><Link href="/">Home</Link></li>
-                            <li className="hover:text-purple-600 transition-colors"><Link href="/products">Products</Link></li>
-                            <li className="hover:text-purple-600 transition-colors"><Link href="/services">Services</Link></li>
-                            <li className="hover:text-purple-600 transition-colors"><Link href="/about">About</Link></li>
-                            <li className="hover:text-purple-600 transition-colors"><Link href="/contact">Contact</Link></li>
+                            <li className="hover:text-purple-600 transition-colors"><Link href="/">Products</Link></li>
+                            <li className="hover:text-purple-600 transition-colors"><Link href="/">Services</Link></li>
+                            <li className="hover:text-purple-600 transition-colors"><Link href="/">About</Link></li>
+                            <li className="hover:text-purple-600 transition-colors"><Link href="/">Contact</Link></li>
                         </ul>
                     </div>
 

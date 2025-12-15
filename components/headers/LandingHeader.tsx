@@ -20,9 +20,9 @@ export default function Header() {
                 <div className="hidden md:block">
                     <ul className="flex gap-5">
                         <li className="hover:text-blue-500 transition-colors"><Link href="/">Home</Link></li>
-                        <li className="hover:text-blue-500 transition-colors"><Link href="/music">Music</Link></li>
-                        <li className="hover:text-blue-500 transition-colors"><Link href="/about">About</Link></li>
-                        <li className="hover:text-blue-500 transition-colors"><Link href="/contact">Contact</Link></li>
+                        <li className="hover:text-blue-500 transition-colors"><Link href="/">Music</Link></li>
+                        <li className="hover:text-blue-500 transition-colors"><Link href="/">About</Link></li>
+                        <li className="hover:text-blue-500 transition-colors"><Link href="/">Contact</Link></li>
                     </ul>
                 </div>
 
