@@ -23,11 +23,6 @@ export default function Dashboard() {
             <section>
                 <div className="p-6 pb-24 space-y-10"> {/* Espaciado vertical */}
 
-                    {/* 1. Playlists DEL USUARIO (Las tuyas) */}
-                    <CarrouselMusic
-                        title="Your Playlists"
-                        type="user"
-                    />
 
                     {/* 2. Playlists RECOMENDADAS (De Spotify y otros) */}
                     <LazyLoadSection>
